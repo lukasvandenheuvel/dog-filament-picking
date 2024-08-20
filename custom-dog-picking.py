@@ -178,7 +178,7 @@ if __name__=="__main__":
 
     for rel_mrc_path in mrcfiles:
         print(f'Picking fibrils for mrc file {rel_mrc_path}...')
-        mrc_path = os.path.join(root, os.path.split(rel_mrc_path)[-1])
+        mrc_path = os.path.join(root, rel_mrc_path)
         data,ps = read_data(mrc_path,rescale)
         dog = filters.difference_of_gaussians( normalize(data), low_sigma=dog_low_sigma/ps )
         skel = skeletonize(dog,ps,min_length,ridge_threshold)
