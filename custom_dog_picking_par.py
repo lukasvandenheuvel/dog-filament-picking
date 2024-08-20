@@ -10,6 +10,14 @@ import multiprocessing
 from functools import partial
 import argparse
 
+def list_mrc_files(path_to_micrographs_star):
+    with open(os.path.join(root,path_to_micrographs_star),'r') as f:
+        lines = f.readlines()
+    nameline = [f.split()[1] for f in lines if '_rlnMicrographName' in f][0]
+    col = int(nameline.split('#')[1])-1
+    mrcfiles = [f.split()[col] for f in lines if '.mrc' in f]
+    return mrcfiles
+
 def read_data(path,rescale):
     with mrcfile.open(path) as mrc:
         data = transform.rescale(mrc.data, rescale)
@@ -190,9 +198,7 @@ if __name__=="__main__":
     max_angle           = params['max_angle']
     max_distance        = params['max_distance']
 
-    with open(os.path.join(root,path_to_micrographs_star),'r') as f:
-        lines = f.readlines()
-    mrcfiles = [f.split()[0] for f in lines if '.mrc' in f]
+    mrcfiles = list_mrc_files(path_to_micrographs_star)
 
     pool = multiprocessing.Pool(processes=mpi)
     pool.map(partial(pick, 
