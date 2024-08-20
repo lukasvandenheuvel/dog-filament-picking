@@ -7,7 +7,6 @@ import pandas as pd
 import networkx as nx
 from skimage import filters,morphology,transform,draw,io
 from pathlib import Path
-import matplotlib.pyplot as plt
 import argparse
 
 indx = 9
