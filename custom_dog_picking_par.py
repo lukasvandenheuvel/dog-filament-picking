@@ -91,6 +91,12 @@ def prune_lines(line_coords, ps, min_length, max_angle, max_distance):
             pruned_line_coords.append(((x_coords.flatten()[ids_to_keep[0]],y_coords.flatten()[ids_to_keep[0]]),(x_coords.flatten()[ids_to_keep[1]],y_coords.flatten()[ids_to_keep[1]])))
     return pruned_line_coords
 
+def rescale_lines(coords,rescale):
+    coords_rescaled = []
+    for line in coords:
+        coords_rescaled.append(((line[0][0]/rescale,line[0][1]/rescale),(line[1][0]/rescale,line[1][1]/rescale)))
+    return coords_rescaled
+
 def draw_lines(line_coords,img_shape,cmap='gray',thickness=2):
     lines = np.zeros(img_shape,dtype='int')
     if cmap=='gray':
@@ -168,7 +174,8 @@ def pick(rel_mrc_path,
     skel = skeletonize(dog,ps,min_length,ridge_threshold)
     line_coords = detect_lines(skel,ps,hough_line_length,hough_line_gap)
     pruned_line_coords = prune_lines(line_coords, ps, min_length, max_angle, max_distance)
-    write_coords = write_coordinate_starfile(root,job_nr,rel_mrc_path,pruned_line_coords)
+    rescaled_coords = rescale_lines(pruned_line_coords,rescale)
+    write_coords = write_coordinate_starfile(root,job_nr,rel_mrc_path,rescaled_coords)
 
 if __name__=="__main__":
     parser = argparse.ArgumentParser()
