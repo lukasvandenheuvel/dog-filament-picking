@@ -1,0 +1,22 @@
+root            : /Users/lukasvandenheuvel/Documents/PhD/Data-temp/20240718_1B_sarkosyl/20240815_Titan3
+path_to_micrographs_star : Select/job014/micrographs_split1.star
+jobid           : 68
+mpi             : 10
+
+rescale         : 0.5
+sigma_view      : 10
+
+# Ridge detection
+dog_low_sigma   : 50        # low sigma for DoG in angstroms. Should be roughly the radius of the fibril
+ridge_sigmas    : [60,70]  # 
+ridge_smoothing : 10
+ridge_threshold : -0.005
+min_length      : 250        # Minimal fibril length in angstrom
+
+# Hough transform
+hough_line_length : 40
+hough_line_gap    : 17
+
+# Line pruning
+max_angle         : 20
+max_distance      : 50

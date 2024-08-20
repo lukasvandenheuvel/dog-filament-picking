@@ -1,4 +1,5 @@
 import os
+import yaml
 import mrcfile
 import numpy as np
 import pandas as pd
@@ -8,25 +9,6 @@ from pathlib import Path
 import multiprocessing
 from functools import partial
 import argparse
-
-indx = 9
-rescale = 0.5
-sigma_view = 10
-
-# Ridge detection
-dog_low_sigma = 50      # low sigma for DoG in angstroms. Should be roughly the radius of the fibril
-ridge_sigmas = [60,70]  # 
-ridge_smoothing = 10
-ridge_threshold = -0.006
-min_length = 150        # Minimal fibril length in angstrom
-
-# Hough transform
-hough_line_length = 40
-hough_line_gap = 17
-
-# Line pruning
-max_angle = 20
-max_distance = 50
 
 def read_data(path,rescale):
     with mrcfile.open(path) as mrc:
@@ -183,15 +165,30 @@ def pick(rel_mrc_path,
 if __name__=="__main__":
     parser = argparse.ArgumentParser()
     #-i DATABASE -u USERNAME -p PASSWORD -size 20
-    parser.add_argument("-m", "--micrographs", help="Path to micrographs star")
-    parser.add_argument("-r", "--root", help="Path to Relion root directory")
+    parser.add_argument("-y", "--yamlpath", help="Path to params yaml")
     parser.add_argument("-j", "--jobnr", help="Job number")
     parser.add_argument("-p", "--mpi", help="Number of MPIs")
     args = parser.parse_args()
-    path_to_micrographs_star = args.micrographs
-    root = args.root
+    path_to_yaml = args.yamlpath
     job_nr = int(args.jobnr)
     mpi = int(args.mpi)
+
+    with open(path_to_yaml, 'r') as file:
+        params = yaml.safe_load(file)
+
+    root = params['root']
+    path_to_micrographs_star = params['path_to_micrographs_star']
+    rescale             = params['rescale']
+    sigma_view          = params['sigma_view']
+    dog_low_sigma       = params['dog_low_sigma']
+    ridge_sigmas        = params['ridge_sigmas']
+    ridge_smoothing     = params['ridge_smoothing']
+    ridge_threshold     = params['ridge_threshold']
+    min_length          = params['min_length']
+    hough_line_length   = params['hough_line_length']
+    hough_line_gap      = params['hough_line_gap']
+    max_angle           = params['max_angle']
+    max_distance        = params['max_distance']
 
     with open(os.path.join(root,path_to_micrographs_star),'r') as f:
         lines = f.readlines()
