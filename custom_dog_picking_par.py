@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 import networkx as nx
 from skimage import filters,morphology,transform,draw,io
+from scipy.ndimage import convolve
 from pathlib import Path
 import multiprocessing
 from functools import partial
@@ -160,19 +161,38 @@ def pick(rel_mrc_path,
          root,
          job_nr,
          rescale,
-         dog_low_sigma,
+         dog_sigmas,
          min_length,
          ridge_threshold,
          hough_line_length,
          hough_line_gap,
          max_angle,
-         max_distance):
+         max_distance,
+         ellipse_kernel_size,
+         ellipse_radius,
+         ellipse_theta):
     print(f'Picking fibrils for mrc file {rel_mrc_path}...\n')
+
+    # Apply DoG filters
     mrc_path = os.path.join(root, rel_mrc_path)
     data,ps = read_data(mrc_path,rescale)
-    dog = filters.difference_of_gaussians( normalize(data), low_sigma=dog_low_sigma/ps )
-    skel = skeletonize(dog,ps,min_length,ridge_threshold)
-    line_coords = detect_lines(skel,ps,hough_line_length,hough_line_gap)
+    dog = filters.difference_of_gaussians( normalize(data), low_sigma=dog_sigmas[0]/ps )
+    for sigma in dog_sigmas[1:]:
+        dog = filters.difference_of_gaussians( normalize(dog), low_sigma=sigma/ps )
+
+    # Create elliptical kernel
+    ellipse = np.zeros((int(ellipse_kernel_size/ps),int(ellipse_kernel_size/ps)))
+    rr,cc = draw.ellipse(int(ellipse_kernel_size/ps/2),int(ellipse_kernel_size/ps/2),int(ellipse_radius/ps/2),int(ellipse_kernel_size/ps/2))
+    ellipse[rr,cc] = 1
+    # Convolve with rotated ellipses
+    line_coords = []
+    for angle in np.linspace(0,360,ellipse_theta):
+        ellipse_rot = transform.rotate(ellipse,angle=angle,resize=False)
+        ellipse_rot = ellipse_rot / np.sum(ellipse_rot)
+        cnv = convolve(dog,ellipse_rot)
+        skel = skeletonize(cnv,ps,min_length,ridge_threshold)
+        line_coords += detect_lines(skel,ps,hough_line_length,hough_line_gap)
+
     pruned_line_coords = prune_lines(line_coords, ps, min_length, max_angle, max_distance)
     rescaled_coords = rescale_lines(pruned_line_coords,rescale)
     write_coords = write_coordinate_starfile(root,job_nr,rel_mrc_path,rescaled_coords)
@@ -195,7 +215,7 @@ if __name__=="__main__":
     path_to_micrographs_star = params['path_to_micrographs_star']
     rescale             = params['rescale']
     sigma_view          = params['sigma_view']
-    dog_low_sigma       = params['dog_low_sigma']
+    dog_sigmas          = params['dog_sigmas']
     ridge_sigmas        = params['ridge_sigmas']
     ridge_smoothing     = params['ridge_smoothing']
     ridge_threshold     = params['ridge_threshold']
@@ -204,21 +224,26 @@ if __name__=="__main__":
     hough_line_gap      = params['hough_line_gap']
     max_angle           = params['max_angle']
     max_distance        = params['max_distance']
+    ellipse_kernel_size = params['ellipse_kernel_size']
+    ellipse_radius      = params['ellipse_radius']
+    ellipse_theta       = params['ellipse_theta']
 
     mrcfiles = list_mrc_files(path_to_micrographs_star)
-
     pool = multiprocessing.Pool(processes=mpi)
     pool.map(partial(pick, 
                      root=root,
                      job_nr=job_nr,
                      rescale=rescale,
-                     dog_low_sigma=dog_low_sigma,
+                     dog_sigmas=dog_sigmas,
                      min_length=min_length,
                      ridge_threshold=ridge_threshold,
                      hough_line_length=hough_line_length,
                      hough_line_gap=hough_line_gap,
                      max_angle=max_angle,
-                     max_distance=max_distance), 
+                     max_distance=max_distance,
+                     ellipse_kernel_size=ellipse_kernel_size,
+                     ellipse_radius=ellipse_radius,
+                     ellipse_theta=ellipse_theta),
                      mrcfiles)
 
     # for rel_mrc_path in mrcfiles:
