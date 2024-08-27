@@ -67,8 +67,8 @@ def angle(lineA, lineB):
     vecB = vecB / np.linalg.norm(vecB)
     product = vecA.T @ vecB
     # Make sure the product is in the range [-1,1]
-    product = max( [min([product,1]), -1] )
-    return np.arccos(product)[0][0]
+    product = max( [min([product.item(),1]), -1] )
+    return np.arccos(product)
 
 def prune_lines(line_coords, ps, min_length, max_angle, max_distance):
     # Find close pairs that have an angle smaller than max_angle
@@ -160,26 +160,46 @@ def write_autopick_starfile(root,job_nr,mrcfiles):
         f.write(out)
     return True
 
+def remove_lines_on_edge(line_coords, data, edge_percentage=0.1):
+    # Remove lines too close to the image edge
+    pruned_coords = []
+    height,width = data.shape
+    for coord in line_coords:
+        if (coord[0][0]<(edge_percentage*width)) and (coord[1][0]<(edge_percentage*width)): # vertical too close to left
+            continue
+        if (coord[0][0]>((1-edge_percentage)*width)) and (coord[1][0]>((1-edge_percentage)*width)): # vertical too close to right
+            continue
+        if (coord[0][1]<(edge_percentage*height)) and (coord[1][1]<(edge_percentage*height)): # horizontal too close to top
+            continue
+        if (coord[0][1]>((1-edge_percentage)*height)) and (coord[1][1]>((1-edge_percentage)*height)): # horizontal too close to bottom
+            continue
+        pruned_coords.append(coord)
+    return pruned_coords
+
 def pick(rel_mrc_path,
          root,
          job_nr,
          rescale,
+         sigma_background,
          dog_sigmas,
-         min_length,
+         min_length_skel,
          ridge_threshold,
          hough_line_length,
          hough_line_gap,
          max_angle,
          max_distance,
+         min_length,
          ellipse_kernel_size,
          ellipse_radius,
-         ellipse_theta):
+         ellipse_theta,
+         edge_percentage):
     print(f'Picking fibrils for mrc file {rel_mrc_path}...\n')
 
     # Apply DoG filters
     mrc_path = os.path.join(root, rel_mrc_path)
     data,ps = read_data(mrc_path,rescale)
-    dog = filters.difference_of_gaussians( normalize(data), low_sigma=dog_sigmas[0]/ps )
+    background_subtract = (data - filters.gaussian( data, sigma=sigma_background/ps ))
+    dog = filters.difference_of_gaussians( normalize(background_subtract), low_sigma=dog_sigmas[0]/ps )
     for sigma in dog_sigmas[1:]:
         dog = filters.difference_of_gaussians( normalize(dog), low_sigma=sigma/ps )
 
@@ -189,14 +209,15 @@ def pick(rel_mrc_path,
     ellipse[rr,cc] = 1
     # Convolve with rotated ellipses
     line_coords = []
-    for angle in np.linspace(0,360,ellipse_theta):
+    for angle in np.arange(0,180,ellipse_theta):
         ellipse_rot = transform.rotate(ellipse,angle=angle,resize=False)
         ellipse_rot = ellipse_rot / np.sum(ellipse_rot)
         cnv = convolve(dog,ellipse_rot)
-        skel = skeletonize(cnv,ps,min_length,ridge_threshold)
+        skel = skeletonize(cnv,ps,min_length_skel,ridge_threshold)
         line_coords += detect_lines(skel,ps,hough_line_length,hough_line_gap)
 
     pruned_line_coords = prune_lines(line_coords, ps, min_length, max_angle, max_distance)
+    pruned_line_coords = remove_lines_on_edge(pruned_line_coords, data, edge_percentage=edge_percentage)
     rescaled_coords = rescale_lines(pruned_line_coords,rescale)
     write_coords = write_coordinate_starfile(root,job_nr,rel_mrc_path,rescaled_coords)
 
@@ -218,18 +239,20 @@ if __name__=="__main__":
     path_to_micrographs_star = params['path_to_micrographs_star']
     rescale             = params['rescale']
     sigma_view          = params['sigma_view']
+    sigma_background    = params['sigma_background']
     dog_sigmas          = params['dog_sigmas']
     ridge_sigmas        = params['ridge_sigmas']
-    ridge_smoothing     = params['ridge_smoothing']
     ridge_threshold     = params['ridge_threshold']
-    min_length          = params['min_length']
+    min_length_skel     = params['min_length_skel']
     hough_line_length   = params['hough_line_length']
     hough_line_gap      = params['hough_line_gap']
     max_angle           = params['max_angle']
     max_distance        = params['max_distance']
+    min_length          = params['min_length']
     ellipse_kernel_size = params['ellipse_kernel_size']
     ellipse_radius      = params['ellipse_radius']
     ellipse_theta       = params['ellipse_theta']
+    edge_percentage     = params['edge_percentage']
 
     mrcfiles = list_mrc_files(path_to_micrographs_star)
     pool = multiprocessing.Pool(processes=mpi)
@@ -237,16 +260,19 @@ if __name__=="__main__":
                      root=root,
                      job_nr=job_nr,
                      rescale=rescale,
+                     sigma_background=sigma_background,
                      dog_sigmas=dog_sigmas,
-                     min_length=min_length,
+                     min_length_skel=min_length_skel,
                      ridge_threshold=ridge_threshold,
                      hough_line_length=hough_line_length,
                      hough_line_gap=hough_line_gap,
                      max_angle=max_angle,
                      max_distance=max_distance,
+                     min_length=min_length,
                      ellipse_kernel_size=ellipse_kernel_size,
                      ellipse_radius=ellipse_radius,
-                     ellipse_theta=ellipse_theta),
+                     ellipse_theta=ellipse_theta,
+                     edge_percentage=edge_percentage),
                      mrcfiles)
 
     # for rel_mrc_path in mrcfiles:

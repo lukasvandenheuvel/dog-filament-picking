@@ -1,25 +1,27 @@
-root            : /Users/lukasvandenheuvel/Documents/PhD/Data-temp/20240718_1B_sarkosyl/20240815_Titan3
-path_to_micrographs_star : Select/job014/micrographs_split1.star
+root            : /Users/lukasvandenheuvel/Documents/PhD/Data-temp/20240718_1B_sarkosyl/20240815_Titan3/randommrcs
+path_to_micrographs_star : /Users/lukasvandenheuvel/Documents/PhD/Data-temp/20240718_1B_sarkosyl/20240815_Titan3/randommrcs/micrographs_split1.star
 
-rescale         : 0.25
+rescale         : 0.125
 sigma_view      : 10
+sigma_background : 200
 
 # Ridge detection
-dog_sigmas      : [40,50]        # low sigma for DoG in angstroms. Should be roughly the radius of the fibril
-ridge_sigmas    : [60,70]  # 
-ridge_smoothing : 10
-ridge_threshold : -0.2
-min_length      : 250        # Minimal fibril length in angstrom
+dog_sigmas      : [40,50,60]        # low sigma for DoG in angstroms. Should be roughly the radius of the fibril
+ridge_threshold : -0.25
+min_length_skel : 200        # Minimal fibril length in angstrom for skeletonization
 
 # Hough transform
-hough_line_length : 40
+hough_line_length : 60
 hough_line_gap    : 17
 
 # Line pruning
 max_angle         : 10
-max_distance      : 50
+max_distance      : 60
+min_length        : 350
 
 # Ellipse convolution
-ellipse_kernel_size : 250 # kernel size
+ellipse_kernel_size : 400 # kernel size
 ellipse_radius      : 50  # fibril radius
-ellipse_theta       : 10  # angle step
+ellipse_theta       : 10  # angle step. 180 / ellipse_theta must yield and integer
+
+edge_percentage     : 0.1
