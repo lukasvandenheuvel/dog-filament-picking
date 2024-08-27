@@ -241,7 +241,6 @@ if __name__=="__main__":
     sigma_view          = params['sigma_view']
     sigma_background    = params['sigma_background']
     dog_sigmas          = params['dog_sigmas']
-    ridge_sigmas        = params['ridge_sigmas']
     ridge_threshold     = params['ridge_threshold']
     min_length_skel     = params['min_length_skel']
     hough_line_length   = params['hough_line_length']
