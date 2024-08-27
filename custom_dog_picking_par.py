@@ -65,7 +65,10 @@ def angle(lineA, lineB):
     vecB = np.array([lineB[0][0]-lineB[1][0], lineB[0][1]-lineB[1][1]]).reshape(-1,1)
     vecA = vecA / np.linalg.norm(vecA)
     vecB = vecB / np.linalg.norm(vecB)
-    return np.arccos(vecA.T @ vecB)[0][0]
+    product = vecA.T @ vecB
+    # Make sure the product is in the range [-1,1]
+    product = max( [min([product,1]), -1] )
+    return np.arccos(product)[0][0]
 
 def prune_lines(line_coords, ps, min_length, max_angle, max_distance):
     # Find close pairs that have an angle smaller than max_angle
