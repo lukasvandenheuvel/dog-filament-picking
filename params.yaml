@@ -1,5 +1,5 @@
-root            : /Users/lukasvandenheuvel/Documents/PhD/Data-temp/20240718_1B_sarkosyl/20240815_Titan3/randommrcs
-path_to_micrographs_star : /Users/lukasvandenheuvel/Documents/PhD/Data-temp/20240718_1B_sarkosyl/20240815_Titan3/randommrcs/micrographs_split1.star
+root            : /mnt/em_data/lukas/1B_sarkosyl
+path_to_micrographs_star : /MotionCorr/job017/corrected_micrographs.star
 
 rescale         : 0.125
 sigma_view      : 10
