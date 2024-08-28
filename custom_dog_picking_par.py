@@ -1,4 +1,5 @@
 import os
+import sys
 import yaml
 import mrcfile
 import numpy as np
@@ -6,6 +7,7 @@ import pandas as pd
 import networkx as nx
 from skimage import filters,morphology,transform,draw,io
 from scipy.ndimage import convolve
+from scipy import signal
 from pathlib import Path
 import multiprocessing
 from functools import partial
@@ -21,9 +23,10 @@ def list_mrc_files(path_to_micrographs_star):
 
 def read_data(path,rescale):
     with mrcfile.open(path) as mrc:
-        data = transform.rescale(mrc.data, rescale)
-        ps = mrc.voxel_size['x'].item() / rescale
-    return data,ps
+        data = mrc.data
+        data_rescale = transform.rescale(data, rescale)
+        ps = mrc.voxel_size['x'].item() / rescale # rescaled pixel size
+    return data,data_rescale,ps
 
 def normalize(img):
     return (img - img.mean()) / img.std()
@@ -94,6 +97,59 @@ def prune_lines(line_coords, ps, min_length, max_angle, max_distance):
             ids_to_keep = np.unravel_index(D.argmax(), D.shape)
             pruned_line_coords.append(((x_coords.flatten()[ids_to_keep[0]],y_coords.flatten()[ids_to_keep[0]]),(x_coords.flatten()[ids_to_keep[1]],y_coords.flatten()[ids_to_keep[1]])))
     return pruned_line_coords
+
+def bin_array(arr,bin_edges):
+    arr = arr.reshape(-1,1)
+    bin_edges = bin_edges.reshape(1,-1)
+    in_bin = ((arr >= bin_edges[:,:-1]) & (arr < bin_edges[:,1:]))
+    _,groups = np.where(in_bin)
+    return np.ravel(groups)
+
+def butter_lowpass_filter(data, cutoff, fs, order):
+    nyq = 0.5 * fs
+    normal_cutoff = cutoff / nyq
+    # Get the filter coefficients 
+    b, a = signal.butter(order, normal_cutoff, btype='low', analog=False)
+    y = signal.filtfilt(b, a, data)
+    return y
+
+def psd_2D(image,ps):
+    psd = np.log(abs( np.fft.fftshift(np.fft.fft2(image)) ))
+    freq_p = np.fft.fftshift( np.fft.fftfreq(image.shape[0],d=ps) )
+    freq_q = np.fft.fftshift( np.fft.fftfreq(image.shape[1],d=ps) )
+    return psd,freq_p,freq_q
+
+def radial_psd_distribution(image,ps,num_freq_bins):
+    # Calculate FFT and PSD
+    psd_img,freq_p,freq_q = psd_2D(image,ps)
+    # Obtain radially distributed spatial frequencies
+    P,Q = np.meshgrid(freq_p,freq_q)
+    F =  np.sqrt(P.T**2 + Q.T**2) # spatial frequencies (riadially distributed)
+    # Bin spatial frequencies and calculate the mean PSD of each bin
+    bin_edges = np.linspace(0,F.max()+sys.float_info.epsilon,num_freq_bins).reshape(1,-1)
+    F_array = np.ravel(F)
+    groups = bin_array(F_array,bin_edges)
+    df = pd.DataFrame({'freq':F_array,'groups':groups,'psd':np.ravel(psd_img)})
+    return df.groupby('groups').mean()
+
+def keep_lines_with_helical_rise(data,line_coords,ps,rescale,fibril_radius,helical_rise_range,num_freq_bins,butterfilter_cutoff,butterfilter_order,peak_prominence):
+    helical_line_coords = []
+    height,width = data.shape
+    # Calculate CTF per line
+    for coords in line_coords:
+        x0 = max([0,        int((min([coords[0][0],coords[1][0]]) - fibril_radius/ps) / rescale)])
+        x1 = min([width,    int((max([coords[0][0],coords[1][0]]) + fibril_radius/ps) / rescale)])
+        y0 = max([0,        int((min([coords[0][1],coords[1][1]]) - fibril_radius/ps) / rescale)])
+        y1 = min([height,   int((max([coords[0][1],coords[1][1]]) + fibril_radius/ps) / rescale)])
+        box = data[y0:y1,x0:x1]
+        radial_psd = radial_psd_distribution(box,ps*rescale,num_freq_bins)
+        fft_filtered = butter_lowpass_filter(radial_psd['psd'], butterfilter_cutoff, 1, butterfilter_order)
+        peaks,_ = signal.find_peaks(fft_filtered,prominence=peak_prominence)
+        peak_freqs = radial_psd['freq'].iloc[peaks].to_numpy().reshape(-1,1)
+        peak_in_helical_range = (peak_freqs <= 1/min(helical_rise_range)) & (peak_freqs >= 1/max(helical_rise_range))
+        if any(peak_in_helical_range):
+            helical_line_coords.append(coords)
+    return helical_line_coords
 
 def rescale_lines(coords,rescale):
     coords_rescaled = []
@@ -192,13 +248,21 @@ def pick(rel_mrc_path,
          ellipse_kernel_size,
          ellipse_radius,
          ellipse_theta,
-         edge_percentage):
+         edge_percentage,
+         check_helix_fft,
+         num_freq_bins,
+         butterfilter_order,
+         butterfilter_cutoff,
+         peak_prominence,
+         helical_rise_range,
+         min_num_fibrils,
+         ):
     print(f'Picking fibrils for mrc file {rel_mrc_path}...\n')
 
     # Apply DoG filters
     mrc_path = os.path.join(root, rel_mrc_path)
-    data,ps = read_data(mrc_path,rescale)
-    background_subtract = (data - filters.gaussian( data, sigma=sigma_background/ps ))
+    data,data_rescale,ps = read_data(mrc_path,rescale)
+    background_subtract = (data_rescale - filters.gaussian( data_rescale, sigma=sigma_background/ps ))
     dog = filters.difference_of_gaussians( normalize(background_subtract), low_sigma=dog_sigmas[0]/ps )
     for sigma in dog_sigmas[1:]:
         dog = filters.difference_of_gaussians( normalize(dog), low_sigma=sigma/ps )
@@ -215,9 +279,16 @@ def pick(rel_mrc_path,
         cnv = convolve(dog,ellipse_rot)
         skel = skeletonize(cnv,ps,min_length_skel,ridge_threshold)
         line_coords += detect_lines(skel,ps,hough_line_length,hough_line_gap)
-
+    # Join lines based on their distance and angles
     pruned_line_coords = prune_lines(line_coords, ps, min_length, max_angle, max_distance)
-    pruned_line_coords = remove_lines_on_edge(pruned_line_coords, data, edge_percentage=edge_percentage)
+    # Filter detections based on their FFT
+    if check_helix_fft:
+        pruned_line_coords = keep_lines_with_helical_rise(data,pruned_line_coords,ps,rescale,ellipse_radius,helical_rise_range,num_freq_bins,butterfilter_cutoff,butterfilter_order,peak_prominence)
+    pruned_line_coords = remove_lines_on_edge(pruned_line_coords, data_rescale, edge_percentage=edge_percentage)
+    # If too few particles were detected, output 0 particles
+    if (len(pruned_line_coords)<min_num_fibrils):
+        pruned_line_coords = []
+    # Rescale and save
     rescaled_coords = rescale_lines(pruned_line_coords,rescale)
     write_coords = write_coordinate_starfile(root,job_nr,rel_mrc_path,rescaled_coords)
 
@@ -252,6 +323,13 @@ if __name__=="__main__":
     ellipse_radius      = params['ellipse_radius']
     ellipse_theta       = params['ellipse_theta']
     edge_percentage     = params['edge_percentage']
+    check_helix_fft     = params['check_helix_fft']
+    num_freq_bins       = params['num_freq_bins']
+    butterfilter_order  = params['butterfilter_order']
+    butterfilter_cutoff = params['butterfilter_cutoff']
+    peak_prominence     = params['peak_prominence']
+    helical_rise_range  = params['helical_rise_range']
+    min_num_fibrils     = params['min_num_fibrils']
 
     mrcfiles = list_mrc_files(path_to_micrographs_star)
     pool = multiprocessing.Pool(processes=mpi)
@@ -271,18 +349,15 @@ if __name__=="__main__":
                      ellipse_kernel_size=ellipse_kernel_size,
                      ellipse_radius=ellipse_radius,
                      ellipse_theta=ellipse_theta,
-                     edge_percentage=edge_percentage),
+                     edge_percentage=edge_percentage,
+                     check_helix_fft=check_helix_fft,
+                     num_freq_bins=num_freq_bins,
+                     butterfilter_order=butterfilter_order,
+                     butterfilter_cutoff=butterfilter_cutoff,
+                     peak_prominence=peak_prominence,
+                     helical_rise_range=helical_rise_range,
+                     min_num_fibrils=min_num_fibrils),
                      mrcfiles)
-
-    # for rel_mrc_path in mrcfiles:
-    #     print(f'Picking fibrils for mrc file {rel_mrc_path}...')
-    #     mrc_path = os.path.join(root, rel_mrc_path)
-    #     data,ps = read_data(mrc_path,rescale)
-    #     dog = filters.difference_of_gaussians( normalize(data), low_sigma=dog_low_sigma/ps )
-    #     skel = skeletonize(dog,ps,min_length,ridge_threshold)
-    #     line_coords = detect_lines(skel,ps,hough_line_length,hough_line_gap)
-    #     pruned_line_coords = prune_lines(line_coords, ps, min_length, max_angle, max_distance)
-    #     write_coords = write_coordinate_starfile(root,job_nr,rel_mrc_path,pruned_line_coords)
     
     print(f'Writing output starfile...')
     write_star = write_autopick_starfile(root,job_nr,mrcfiles)

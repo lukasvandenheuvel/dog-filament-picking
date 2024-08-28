@@ -1,5 +1,5 @@
-root            : /mnt/em_data/lukas/1B_sarkosyl
-path_to_micrographs_star : /MotionCorr/job017/corrected_micrographs.star
+root            : /Users/lukasvandenheuvel/Documents/PhD/Data-temp/20240718_1B_sarkosyl/20240815_Titan3
+path_to_micrographs_star : /Users/lukasvandenheuvel/Documents/PhD/Data-temp/20240718_1B_sarkosyl/20240815_Titan3/randommrcs/micrographs_split1.star
 
 rescale         : 0.125
 sigma_view      : 10
@@ -24,4 +24,16 @@ ellipse_kernel_size : 400 # kernel size
 ellipse_radius      : 50  # fibril radius
 ellipse_theta       : 10  # angle step. 180 / ellipse_theta must yield and integer
 
+# Remove fibrils based on FFT
+check_helix_fft     : True
+num_freq_bins       : 150
+butterfilter_order  : 4
+butterfilter_cutoff : 0.25 # Relative cutoff frequency, must not exceed 0.5 (nyquist)
+peak_prominence     : 0.03 # Increasing will result in detecting less peaks
+helical_rise_range  : [4.6,5.0]
+
+# Remove detections parallel to the edges (they usually correspond to artifacts)
 edge_percentage     : 0.1
+
+# Only keep micrographs with more than xx fibril particles
+min_num_fibrils     : 2
