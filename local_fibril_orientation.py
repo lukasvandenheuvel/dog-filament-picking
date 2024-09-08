@@ -80,8 +80,8 @@ def pick_local(rel_mrc_path,
         dx = int(fibril_length * np.cos(orientations[p]) / 2 / ps)
         dy = -int(fibril_length * np.sin(orientations[p]) / 2 / ps) # y is negative because of the coordinate system in images
         helix_lines.append( (
-            (within_frame(point[0]-dy,height),within_frame(point[1]-dx,width)), # Starting coordinate of line
-            (within_frame(point[0]+dy,height),within_frame(point[1]+dx,width))  # Ending coordinate of line
+            (within_frame(point[1]-dx,width),within_frame(point[0]-dy,height)), # Starting coordinate of line (X,Y)
+            (within_frame(point[1]+dx,width),within_frame(point[0]+dy,height))  # Ending coordinate of line (X,Y)
         ))
     # Rescale and save
     rescaled_coords = rescale_lines(helix_lines,rescale)
