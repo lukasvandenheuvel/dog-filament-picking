@@ -136,5 +136,5 @@ if __name__=="__main__":
                      unique_mgs)
 
     print(f'Writing output starfile...')
-    write_star = write_autopick_starfile(root,job_nr,unique_mgs,dir_name='LocalHelixPick',starfile_name='localhelixpick.star')
+    write_star = write_autopick_starfile(root,job_nr,unique_mgs,dir_name='LocalHelixPick',starfile_name='localhelixpick.star',job_in_dirname=False)
     print(f'Done!')

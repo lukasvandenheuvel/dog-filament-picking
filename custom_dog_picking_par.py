@@ -210,10 +210,10 @@ def write_coordinate_starfile(root,job_nr,rel_mrc_path,coords,dir_name='CustomDo
         f.write(format_coords_in_starfile(coords))
     return True
 
-def write_autopick_starfile(root,job_nr,mrcfiles,dir_name='CustomDogPick',starfile_name='customdogpick.star'):    
+def write_autopick_starfile(root,job_nr,mrcfiles,dir_name='CustomDogPick',starfile_name='customdogpick.star',job_in_dirname=True):    
     out = '\n# version 30001\n\ndata_coordinate_files\n\nloop_ \n_rlnMicrographName #1 \n_rlnMicrographCoordinates #2 \n'
     for rel_mrc_path in mrcfiles:
-        rel_out_dir = prep_relative_output_dir(root,job_nr,rel_mrc_path,create_dir=False,dir_name=dir_name)
+        rel_out_dir = prep_relative_output_dir(root,job_nr,rel_mrc_path,create_dir=False,dir_name=dir_name,job_in_dirname=job_in_dirname)
         out_fname = Path(os.path.split(rel_mrc_path)[-1]).stem + '_autopick.star'
         out += rel_mrc_path + ' ' + os.path.join(rel_out_dir,out_fname) + ' \n'
     out += ' \n'
