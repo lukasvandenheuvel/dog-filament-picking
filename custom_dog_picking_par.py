@@ -181,9 +181,16 @@ def format_coords_in_starfile(coords):
     out += '\n'
     return out
 
-def prep_relative_output_dir(root,job_nr,rel_mrc_path,create_dir=False):
-    out_dir = os.path.join('CustomDogPick',f'job{job_nr:03}')
-    make_dir = False
+def prep_relative_output_dir(root,job_nr,rel_mrc_path,create_dir=False,dir_name='CustomDogPick',job_in_dirname=True):
+    # Create custom picking dir
+    if create_dir:
+        Path(os.path.join(root,dir_name)).mkdir(exist_ok=True)
+    # Create job dirs and children
+    out_dir = os.path.join(dir_name,f'job{job_nr:03}')
+    if job_in_dirname:
+        make_dir = False
+    else:
+        make_dir=True
     for dir in Path(rel_mrc_path).parts[:-1]:
         if make_dir:
             out_dir = os.path.join(out_dir,dir)
@@ -193,9 +200,9 @@ def prep_relative_output_dir(root,job_nr,rel_mrc_path,create_dir=False):
             make_dir = True
     return out_dir
 
-def write_coordinate_starfile(root,job_nr,rel_mrc_path,coords):   
+def write_coordinate_starfile(root,job_nr,rel_mrc_path,coords,dir_name='CustomDogPick',job_in_dirname=True):   
     # Make output directories 
-    rel_out_dir = prep_relative_output_dir(root,job_nr,rel_mrc_path,create_dir=True)
+    rel_out_dir = prep_relative_output_dir(root,job_nr,rel_mrc_path,create_dir=True,dir_name=dir_name,job_in_dirname=job_in_dirname)
     # Write file
     out_fname = Path(os.path.split(rel_mrc_path)[-1]).stem + '_autopick.star'
     out_file = os.path.join(root,rel_out_dir,out_fname)
@@ -203,15 +210,15 @@ def write_coordinate_starfile(root,job_nr,rel_mrc_path,coords):
         f.write(format_coords_in_starfile(coords))
     return True
 
-def write_autopick_starfile(root,job_nr,mrcfiles):    
+def write_autopick_starfile(root,job_nr,mrcfiles,dir_name='CustomDogPick',starfile_name='customdogpick.star'):    
     out = '\n# version 30001\n\ndata_coordinate_files\n\nloop_ \n_rlnMicrographName #1 \n_rlnMicrographCoordinates #2 \n'
     for rel_mrc_path in mrcfiles:
-        rel_out_dir = prep_relative_output_dir(root,job_nr,rel_mrc_path,create_dir=False)
+        rel_out_dir = prep_relative_output_dir(root,job_nr,rel_mrc_path,create_dir=False,dir_name=dir_name)
         out_fname = Path(os.path.split(rel_mrc_path)[-1]).stem + '_autopick.star'
         out += rel_mrc_path + ' ' + os.path.join(rel_out_dir,out_fname) + ' \n'
     out += ' \n'
 
-    autopick_out_path = os.path.join(root,'CustomDogPick',f'job{job_nr:03}','customdogpick.star')
+    autopick_out_path = os.path.join(root,dir_name,f'job{job_nr:03}',starfile_name)
     with open(autopick_out_path,'w+') as f:
         f.write(out)
     return True
@@ -290,7 +297,7 @@ def pick(rel_mrc_path,
         pruned_line_coords = []
     # Rescale and save
     rescaled_coords = rescale_lines(pruned_line_coords,rescale)
-    write_coords = write_coordinate_starfile(root,job_nr,rel_mrc_path,rescaled_coords)
+    write_coords = write_coordinate_starfile(root,job_nr,rel_mrc_path,rescaled_coords,dir_name='CustomDogPick')
 
 if __name__=="__main__":
     parser = argparse.ArgumentParser()
@@ -307,7 +314,7 @@ if __name__=="__main__":
         params = yaml.safe_load(file)
 
     root = params['root']
-    path_to_micrographs_star = params['path_to_micrographs_star']
+    path_to_micrographs_star = params['path_to_star']
     rescale             = params['rescale']
     sigma_view          = params['sigma_view']
     sigma_background    = params['sigma_background']
@@ -360,5 +367,5 @@ if __name__=="__main__":
                      mrcfiles)
     
     print(f'Writing output starfile...')
-    write_star = write_autopick_starfile(root,job_nr,mrcfiles)
+    write_star = write_autopick_starfile(root,job_nr,mrcfiles,dir_name='CustomDogPick',starfile_name='customdogpick.star')
     print(f'Done!')

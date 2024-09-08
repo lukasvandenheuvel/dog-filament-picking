@@ -1,5 +1,5 @@
 root            : /Users/lukasvandenheuvel/Documents/PhD/Data-temp/20240718_1B_sarkosyl/20240815_Titan3
-path_to_micrographs_star : /Users/lukasvandenheuvel/Documents/PhD/Data-temp/20240718_1B_sarkosyl/20240815_Titan3/randommrcs/micrographs_split1.star
+path_to_star    : /Users/lukasvandenheuvel/Documents/PhD/Data-temp/20240718_1B_sarkosyl/CStoRelion/cs2star_J194/particles_test.star
 
 rescale         : 0.125
 sigma_view      : 10
@@ -20,8 +20,8 @@ max_distance      : 60
 min_length        : 350
 
 # Ellipse convolution
-ellipse_kernel_size : 400 # kernel size
-ellipse_radius      : 50  # fibril radius
+ellipse_kernel_size : 350 # kernel size
+ellipse_radius      : 60 # fibril radius
 ellipse_theta       : 10  # angle step. 180 / ellipse_theta must yield and integer
 
 # Remove fibrils based on FFT
@@ -37,3 +37,6 @@ edge_percentage     : 0.1
 
 # Only keep micrographs with more than xx fibril particles
 min_num_fibrils     : 2
+
+# In case of local fibril extraction (based on pre-existing SPA coordinates)
+fibril_length       : 600 # Fibril length to extract in A
