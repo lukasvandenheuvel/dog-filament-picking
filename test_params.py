@@ -19,7 +19,7 @@ with open(path_to_yaml, 'r') as file:
     params = yaml.safe_load(file)
 
 root = params['root']
-path_to_micrographs_star = params['path_to_micrographs_star']
+path_to_micrographs_star = params['path_to_star']
 rescale             = params['rescale']
 sigma_view          = params['sigma_view']
 sigma_background    = params['sigma_background']
@@ -60,11 +60,10 @@ def remove_lines_on_edge(line_coords, data, edge_percentage=0.1):
 
 with open(os.path.join(root,path_to_micrographs_star),'r') as f:
     lines = f.readlines()
-    mrcfiles = [f.split()[0] for f in lines if '.mrc' in f]
+    mrcfiles = [os.path.split(f.split()[0])[1] for f in lines if '.mrc' in f]
 
-rel_mrc_path = random.choice(mrcfiles)
-rel_mrc_path = mrcfiles[3]
-mrc_path = os.path.join(root, rel_mrc_path)
+mrcfile_choice = random.choice(mrcfiles)
+mrc_path = os.path.join(root, mrcfile_choice)
 data,data_rescale,ps = read_data(mrc_path,rescale)
 height,width = data.shape
 background_subtract = data_rescale - filters.gaussian( data_rescale, sigma=sigma_background/ps )
@@ -91,7 +90,7 @@ if check_helix_fft:
 pruned_line_coords = remove_lines_on_edge(pruned_line_coords, data_rescale, edge_percentage=edge_percentage)
 
 # For visualization
-final_lines = [[[coord[0][1],coord[0][0]],[coord[1][1],coord[1][0]]] for coord in final_line_coords]
+final_lines = [[[coord[0][1],coord[0][0]],[coord[1][1],coord[1][0]]] for coord in pruned_line_coords]
 lines = [[[coord[0][1],coord[0][0]],[coord[1][1],coord[1][0]]] for coord in line_coords]
 
 cmap = matplotlib.cm.get_cmap('Spectral')

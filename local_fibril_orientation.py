@@ -13,7 +13,7 @@ import argparse
 def within_frame(x,max_size):
     return max([0,min([x,max_size-1])])
 
-def read_star_in_pandas(path_to_particles_star):
+def read_star_in_pandas(path_to_particles_star,header_start='version 30001'):
     # Read star
     with open(path_to_particles_star,'r') as f:
         lines = f.readlines()
@@ -26,6 +26,9 @@ def read_star_in_pandas(path_to_particles_star):
             colsplit = l.split(' #')
             col_num = int(colsplit[1])-1
             columns[col_num] = colsplit[0]
+        if header_start in l: # Start over again
+            num_header = 0
+            columns = {}
     df = pd.read_csv(path_to_particles_star,skiprows=num_header+1,header=None,delimiter=' ').rename(columns=columns)
     return df
 
