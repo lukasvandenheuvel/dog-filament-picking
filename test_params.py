@@ -82,6 +82,7 @@ for angle in np.arange(0,180,ellipse_theta):
     ellipse_rot = ellipse_rot / np.sum(ellipse_rot)
     cnv = convolve(dog,ellipse_rot)
     skel = skeletonize(cnv,ps,min_length_skel,ridge_threshold)
+
     line_coords += detect_lines(skel,ps,hough_line_length,hough_line_gap)
 
 pruned_line_coords = prune_lines(line_coords, ps, min_length, max_angle, max_distance)

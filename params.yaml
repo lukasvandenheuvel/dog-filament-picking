@@ -1,13 +1,13 @@
-root            : /Users/lukasvandenheuvel/Documents/PhD/Data-temp/LH007_1B-seeding/SAA_brainCT_maSyn/randommrcs
-path_to_star    : /Users/lukasvandenheuvel/Documents/PhD/Data-temp/LH007_1B-seeding/SAA_brainCT_maSyn/randommrcs/micrographs_split1.star
+root            : /Users/lukasvandenheuvel/Documents/PhD/Data-temp/LH007_1B-seeding/SAA_1B_maSyn/randommrcs
+path_to_star    : /Users/lukasvandenheuvel/Documents/PhD/Data-temp/LH007_1B-seeding/SAA_1B_maSyn/randommrcs/micrographs_split1.star
 
 rescale         : 0.125
 sigma_view      : 10
 sigma_background : 200
 
 # Ridge detection
-dog_sigmas      : [40,50,60,70]        # low sigma for DoG in angstroms. Should be roughly the radius of the fibril
-ridge_threshold : -0.20
+dog_sigmas      : [50,60,70]        # low sigma for DoG in angstroms. Should be roughly the radius of the fibril
+ridge_threshold : -0.24
 min_length_skel : 200        # Minimal fibril length in angstrom for skeletonization
 
 # Hough transform
@@ -20,8 +20,8 @@ max_distance      : 60
 min_length        : 350
 
 # Ellipse convolution
-ellipse_kernel_size : 350 # kernel size
-ellipse_radius      : 60 # fibril radius
+ellipse_kernel_size : 400 # kernel size
+ellipse_radius      : 70 # fibril radius
 ellipse_theta       : 5  # angle step. 180 / ellipse_theta must yield and integer
 
 # Remove fibrils based on FFT

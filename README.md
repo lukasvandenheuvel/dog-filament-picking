@@ -34,5 +34,15 @@
 
 ## Test parameters
 
-- Open params.yaml, set filepaths, and test parameters.
+- Open params.yaml, set filepaths, and test parameters with ```test_params.py```.
 - The filament picking algorithm is sensitive to the rescale, dog_sigmas and ridge_threshold parameters.
+
+![Alt text](assets/test-params-00.png "Select micrographs")
+
+## Run filament picking
+- Copy parameters to the GPU (or use github).
+- Open params.py and change the filepaths (use absolute paths only)
+- ```conda activate napari-env```
+- ```python custom_dog_picking_par.py -y params.py -j 14 -p 55```  
+where -j is the job number and -p is the number of CPUs to parallalize over.
+- A folder ```CustomDogPick``` will be made with the results of the filament picking.
