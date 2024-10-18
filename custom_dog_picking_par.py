@@ -245,6 +245,7 @@ def pick(rel_mrc_path,
          rescale,
          sigma_background,
          dog_sigmas,
+         gauss_sigma,
          min_length_skel,
          ridge_threshold,
          hough_line_length,
@@ -266,13 +267,18 @@ def pick(rel_mrc_path,
          ):
     print(f'Picking fibrils for mrc file {rel_mrc_path}...\n')
 
-    # Apply DoG filters
+    # Background subtraction
     mrc_path = os.path.join(root, rel_mrc_path)
     data,data_rescale,ps = read_data(mrc_path,rescale)
     background_subtract = (data_rescale - filters.gaussian( data_rescale, sigma=sigma_background/ps ))
-    dog = filters.difference_of_gaussians( normalize(background_subtract), low_sigma=dog_sigmas[0]/ps )
-    for sigma in dog_sigmas[1:]:
-        dog = filters.difference_of_gaussians( normalize(dog), low_sigma=sigma/ps )
+    
+    # Low-pass filtering
+    if len(dog_sigmas)>0: # Do difference of gaussian filtering
+        lpf = filters.difference_of_gaussians( normalize(background_subtract), low_sigma=dog_sigmas[0]/ps )
+        for sigma in dog_sigmas[1:]:
+            lpf = filters.difference_of_gaussians( normalize(lpf), low_sigma=sigma/ps )
+    else: # Do gaussian LFP
+        lpf = filters.gaussian(normalize(background_subtract), sigma=gauss_sigma/ps)
 
     # Create elliptical kernel
     ellipse = np.zeros((int(ellipse_kernel_size/ps),int(ellipse_kernel_size/ps)))
@@ -283,7 +289,7 @@ def pick(rel_mrc_path,
     for angle in np.arange(0,180,ellipse_theta):
         ellipse_rot = transform.rotate(ellipse,angle=angle,resize=False)
         ellipse_rot = ellipse_rot / np.sum(ellipse_rot)
-        cnv = convolve(dog,ellipse_rot)
+        cnv = convolve(normalize(lpf),ellipse_rot)
         skel = skeletonize(cnv,ps,min_length_skel,ridge_threshold)
         line_coords += detect_lines(skel,ps,hough_line_length,hough_line_gap)
     # Join lines based on their distance and angles
@@ -319,6 +325,7 @@ if __name__=="__main__":
     sigma_view          = params['sigma_view']
     sigma_background    = params['sigma_background']
     dog_sigmas          = params['dog_sigmas']
+    gauss_sigma         = params['gauss_sigma']
     ridge_threshold     = params['ridge_threshold']
     min_length_skel     = params['min_length_skel']
     hough_line_length   = params['hough_line_length']
@@ -346,6 +353,7 @@ if __name__=="__main__":
                      rescale=rescale,
                      sigma_background=sigma_background,
                      dog_sigmas=dog_sigmas,
+                     gauss_sigma=gauss_sigma,
                      min_length_skel=min_length_skel,
                      ridge_threshold=ridge_threshold,
                      hough_line_length=hough_line_length,

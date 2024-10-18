@@ -24,6 +24,7 @@ rescale             = params['rescale']
 sigma_view          = params['sigma_view']
 sigma_background    = params['sigma_background']
 dog_sigmas          = params['dog_sigmas']
+gauss_sigma         = params['gauss_sigma']
 ridge_threshold     = params['ridge_threshold']
 min_length_skel     = params['min_length_skel']
 hough_line_length   = params['hough_line_length']
@@ -63,13 +64,19 @@ with open(os.path.join(root,path_to_micrographs_star),'r') as f:
     mrcfiles = [os.path.split(f.split()[0])[1] for f in lines if '.mrc' in f]
 
 mrcfile_choice = random.choice(mrcfiles)
+#mrcfile_choice = 'FoilHole_9105183_Data_9102688_9102690_20241009_132447_EER.mrc'
+print(mrcfile_choice)
 mrc_path = os.path.join(root, mrcfile_choice)
 data,data_rescale,ps = read_data(mrc_path,rescale)
 height,width = data.shape
 background_subtract = data_rescale - filters.gaussian( data_rescale, sigma=sigma_background/ps )
-dog = filters.difference_of_gaussians( normalize(background_subtract), low_sigma=dog_sigmas[0]/ps )
-for sigma in dog_sigmas[1:]:
-    dog = filters.difference_of_gaussians( normalize(dog), low_sigma=sigma/ps )
+
+if len(dog_sigmas)>0: # Do difference of gaussian filtering
+    lpf = filters.difference_of_gaussians( normalize(background_subtract), low_sigma=dog_sigmas[0]/ps )
+    for sigma in dog_sigmas[1:]:
+        lpf = filters.difference_of_gaussians( normalize(lpf), low_sigma=sigma/ps )
+else: # Do gaussian LFP
+    lpf = filters.gaussian(normalize(background_subtract), sigma=gauss_sigma/ps)
 
 # Convolve with inverted ellipse
 ellipse = np.zeros((int(ellipse_kernel_size/ps),int(ellipse_kernel_size/ps)))
@@ -80,7 +87,7 @@ line_coords = []
 for angle in np.arange(0,180,ellipse_theta):
     ellipse_rot = transform.rotate(ellipse,angle=angle,resize=False)
     ellipse_rot = ellipse_rot / np.sum(ellipse_rot)
-    cnv = convolve(dog,ellipse_rot)
+    cnv = convolve(normalize(lpf),ellipse_rot)
     skel = skeletonize(cnv,ps,min_length_skel,ridge_threshold)
 
     line_coords += detect_lines(skel,ps,hough_line_length,hough_line_gap)
@@ -99,7 +106,7 @@ viewer = napari.Viewer()
 
 image_layer = viewer.add_image(filters.gaussian( data_rescale, sigma=sigma_view/ps ))
 image_layer = viewer.add_image(filters.gaussian( background_subtract, sigma=sigma_view/ps ))
-image_layer = viewer.add_image(dog)
+image_layer = viewer.add_image(normalize(lpf))
 image_layer = viewer.add_image(ellipse)
 image_layer = viewer.add_image(cnv)
 image_layer = viewer.add_image(skel)
